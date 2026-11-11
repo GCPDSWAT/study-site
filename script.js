@@ -2,9 +2,10 @@
 /* ==========================================
    VEXCHAT - COMPLETE FRONTEND
    Supabase + GitHub Pages
+   Existing accounts and DMs preserved
 ========================================== */
 
-// YOUR EXISTING SUPABASE DETAILS
+// YOUR EXISTING SUPABASE CONNECTION
 const SUPABASE_URL = "https://sprhwvrzpltridhikttp.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_JTH82eb7Tk7s4MEXCQPPGA_6Cn70nKy";
 
@@ -20,6 +21,9 @@ let currentProfile = null;
 let currentChat = null;
 let messageSubscription = null;
 let friends = [];
+let servers = [];
+let selectedServer = null;
+let selectedChannel = null;
 let searchTimer = null;
 
 // ==========================================
@@ -28,6 +32,7 @@ let searchTimer = null;
 
 function notify(message) {
   const toast = $("toast");
+  if (!toast) return;
 
   toast.textContent = message;
   toast.style.display = "block";
@@ -40,6 +45,32 @@ function notify(message) {
 function showError(message) {
   $("authError").textContent = message;
 }
+
+// ==========================================
+// MODALS
+// ==========================================
+
+function openModal(id) {
+  $(id)?.classList.remove("hidden");
+}
+
+function closeModal(id) {
+  $(id)?.classList.add("hidden");
+}
+
+document.querySelectorAll(".modal-close").forEach(button => {
+  button.addEventListener("click", () => {
+    closeModal(button.dataset.close);
+  });
+});
+
+document.querySelectorAll(".modal").forEach(modal => {
+  modal.addEventListener("click", event => {
+    if (event.target === modal) {
+      modal.classList.add("hidden");
+    }
+  });
+});
 
 // ==========================================
 // NAVIGATION
@@ -55,13 +86,25 @@ function showAuth() {
   $("authScreen").classList.remove("hidden");
 }
 
+function showDirectMessages() {
+  $("serverPanel").classList.add("hidden");
+  $("directMessagePanel").classList.remove("hidden");
+}
+
+function showServerPanel() {
+  $("directMessagePanel").classList.add("hidden");
+  $("serverPanel").classList.remove("hidden");
+}
+
 function switchView(view) {
   $("welcome").classList.add("hidden");
   $("messages").classList.add("hidden");
   $("messageForm").classList.add("hidden");
   $("settingsView").classList.add("hidden");
 
-  document.querySelectorAll(".server-icon").forEach(button => {
+  showDirectMessages();
+
+  document.querySelectorAll(".server-icon[data-view]").forEach(button => {
     button.classList.toggle(
       "active",
       button.dataset.view === view
@@ -70,9 +113,8 @@ function switchView(view) {
 
   if (view === "home") {
     $("welcome").classList.remove("hidden");
-
     $("chatTitle").textContent = "Welcome to VEXCHAT";
-    $("chatSubtitle").textContent = "Choose a friend to start chatting.";
+    $("chatSubtitle").textContent = "Choose a friend or server.";
     currentChat = null;
   }
 
@@ -141,7 +183,7 @@ async function signup() {
       await loadApp();
     } else {
       showError(
-        "Account created! Sign-in may require confirmation depending on your Supabase settings."
+        "Account created! Check your email if confirmation is required."
       );
     }
 
@@ -204,9 +246,13 @@ async function logout() {
   currentProfile = null;
   currentChat = null;
   friends = [];
+  servers = [];
+  selectedServer = null;
+  selectedChannel = null;
 
   $("friendsList").innerHTML = "";
   $("requestsList").innerHTML = "";
+  $("serverList").innerHTML = "";
 
   showAuth();
 }
@@ -234,7 +280,7 @@ async function loadApp() {
       .from("profiles")
       .upsert({
         id: currentUser.id,
-        username: username,
+        username,
         updated_at: new Date().toISOString()
       }, {
         onConflict: "id"
@@ -259,8 +305,7 @@ async function loadApp() {
     currentProfile = profile;
 
     $("myUsername").textContent = profile.username;
-    $("myAvatar").textContent =
-      profile.username[0].toUpperCase();
+    $("myAvatar").textContent = profile.username[0].toUpperCase();
 
     $("settingsUsername").textContent = profile.username;
     $("settingsEmail").textContent = currentUser.email;
@@ -270,6 +315,7 @@ async function loadApp() {
 
     await loadFriends();
     await loadRequests();
+    await loadServers();
 
   } catch (error) {
     notify("Loading error: " + error.message);
@@ -308,9 +354,7 @@ async function loadFriends() {
       .eq("id", otherId)
       .maybeSingle();
 
-    if (profile) {
-      friends.push(profile);
-    }
+    if (profile) friends.push(profile);
   }
 
   renderFriends();
@@ -328,7 +372,6 @@ function renderFriends() {
 
   friends.forEach(friend => {
     const item = document.createElement("div");
-
     item.className = "friend";
 
     if (currentChat?.id === friend.id) {
@@ -343,7 +386,6 @@ function renderFriends() {
     name.textContent = friend.username;
 
     item.append(avatar, name);
-
     item.onclick = () => openChat(friend);
 
     list.appendChild(item);
@@ -432,9 +474,7 @@ async function searchUsers(query) {
 
   results.innerHTML = "";
 
-  if (error) {
-    return;
-  }
+  if (error) return;
 
   if (!data || !data.length) {
     results.innerHTML =
@@ -446,15 +486,13 @@ async function searchUsers(query) {
     const result = document.createElement("div");
     result.className = "search-result";
     result.textContent = user.username;
-
     result.onclick = () => addFriend(user.username);
-
     results.appendChild(result);
   });
 }
 
 // ==========================================
-// LOAD FRIEND REQUESTS
+// FRIEND REQUESTS
 // ==========================================
 
 async function loadRequests() {
@@ -490,17 +528,12 @@ async function loadRequests() {
     const accept = document.createElement("button");
     accept.textContent = "✓";
     accept.title = "Accept friend request";
-
     accept.onclick = () => acceptRequest(request.id);
 
     row.append(name, accept);
     list.appendChild(row);
   }
 }
-
-// ==========================================
-// ACCEPT FRIEND REQUEST
-// ==========================================
 
 async function acceptRequest(id) {
   const { error } = await db
@@ -521,11 +554,15 @@ async function acceptRequest(id) {
 }
 
 // ==========================================
-// OPEN CHAT
+// DIRECT MESSAGES
 // ==========================================
 
 async function openChat(friend) {
   currentChat = friend;
+  selectedServer = null;
+  selectedChannel = null;
+
+  showDirectMessages();
 
   $("welcome").classList.add("hidden");
   $("settingsView").classList.add("hidden");
@@ -535,7 +572,7 @@ async function openChat(friend) {
   $("chatTitle").textContent = friend.username;
   $("chatSubtitle").textContent = "Direct messages";
 
-  document.querySelectorAll(".server-icon").forEach(button => {
+  document.querySelectorAll(".server-icon[data-view]").forEach(button => {
     button.classList.toggle(
       "active",
       button.dataset.view === "messages"
@@ -569,17 +606,11 @@ async function openChat(friend) {
           (message.sender_id === friend.id &&
            message.receiver_id === currentUser.id);
 
-        if (belongsToChat) {
-          addMessage(message);
-        }
+        if (belongsToChat) addMessage(message);
       }
     )
     .subscribe();
 }
-
-// ==========================================
-// LOAD MESSAGES
-// ==========================================
 
 async function loadMessages() {
   if (!currentChat) return;
@@ -598,13 +629,8 @@ async function loadMessages() {
   }
 
   $("messages").innerHTML = "";
-
   (data || []).forEach(addMessage);
 }
-
-// ==========================================
-// DISPLAY MESSAGE
-// ==========================================
 
 function addMessage(message) {
   const container = $("messages");
@@ -637,7 +663,6 @@ function addMessage(message) {
   content.className = "message-content";
 
   const sender = document.createElement("small");
-
   sender.textContent =
     message.sender_id === currentUser.id
       ? "You"
@@ -652,10 +677,6 @@ function addMessage(message) {
   container.appendChild(wrapper);
   container.scrollTop = container.scrollHeight;
 }
-
-// ==========================================
-// SEND MESSAGE
-// ==========================================
 
 async function sendMessage(event) {
   event.preventDefault();
@@ -687,6 +708,408 @@ async function sendMessage(event) {
 }
 
 // ==========================================
+// SERVER SYSTEM
+// ==========================================
+
+// Load servers that the logged-in user belongs to
+
+async function loadServers() {
+  const { data: memberships, error } = await db
+    .from("server_members")
+    .select("server_id,role")
+    .eq("user_id", currentUser.id);
+
+  if (error) {
+    notify("Server loading error: " + error.message);
+    return;
+  }
+
+  servers = [];
+
+  for (const membership of memberships || []) {
+    const { data: server, error: serverError } = await db
+      .from("servers")
+      .select("*")
+      .eq("id", membership.server_id)
+      .maybeSingle();
+
+    if (!serverError && server) {
+      servers.push({
+        ...server,
+        myRole: membership.role
+      });
+    }
+  }
+
+  renderServers();
+}
+
+// Display server icons
+
+function renderServers() {
+  const list = $("serverList");
+  list.innerHTML = "";
+
+  servers.forEach(server => {
+    const button = document.createElement("button");
+
+    button.className = "server-icon";
+    button.title = server.name;
+    button.textContent = server.name[0].toUpperCase();
+
+    if (selectedServer?.id === server.id) {
+      button.classList.add("active");
+    }
+
+    button.onclick = () => openServer(server);
+
+    list.appendChild(button);
+  });
+}
+
+// Create server
+
+async function createServer() {
+  const name = $("newServerName").value.trim();
+
+  if (!name) {
+    notify("Enter a server name.");
+    return;
+  }
+
+  if (name.length > 50) {
+    notify("Server names must be 50 characters or fewer.");
+    return;
+  }
+
+  const { data: server, error } = await db
+    .from("servers")
+    .insert({
+      name,
+      owner_id: currentUser.id
+    })
+    .select()
+    .single();
+
+  if (error) {
+    notify("Could not create server: " + error.message);
+    return;
+  }
+
+  // Add the creator as the server owner
+
+  const { error: memberError } = await db
+    .from("server_members")
+    .insert({
+      server_id: server.id,
+      user_id: currentUser.id,
+      role: "owner"
+    });
+
+  if (memberError) {
+    notify("Server created, but owner setup failed: " + memberError.message);
+    return;
+  }
+
+  // Create a default general channel
+
+  const { error: channelError } = await db
+    .from("server_channels")
+    .insert({
+      server_id: server.id,
+      name: "general",
+      description: "General conversations",
+      created_by: currentUser.id
+    });
+
+  if (channelError) {
+    notify("Server created, but default channel failed: " + channelError.message);
+  } else {
+    notify("Server created!");
+  }
+
+  $("newServerName").value = "";
+  closeModal("createServerModal");
+
+  await loadServers();
+
+  const createdServer = servers.find(item => item.id === server.id);
+
+  if (createdServer) {
+    await openServer(createdServer);
+  }
+}
+
+// Open server
+
+async function openServer(server) {
+  selectedServer = server;
+  selectedChannel = null;
+  currentChat = null;
+
+  if (messageSubscription) {
+    await db.removeChannel(messageSubscription);
+    messageSubscription = null;
+  }
+
+  showServerPanel();
+
+  $("selectedServerName").textContent = server.name;
+
+  $("welcome").classList.remove("hidden");
+  $("messages").classList.add("hidden");
+  $("messageForm").classList.add("hidden");
+  $("settingsView").classList.add("hidden");
+
+  $("chatTitle").textContent = server.name;
+  $("chatSubtitle").textContent = "Choose a channel to get started.";
+
+  renderServers();
+
+  await loadChannels();
+  await loadServerMembers();
+}
+
+// Load channels
+
+async function loadChannels() {
+  if (!selectedServer) return;
+
+  const { data, error } = await db
+    .from("server_channels")
+    .select("*")
+    .eq("server_id", selectedServer.id)
+    .order("created_at", { ascending: true });
+
+  const list = $("channelList");
+  list.innerHTML = "";
+
+  if (error) {
+    notify("Channel error: " + error.message);
+    return;
+  }
+
+  if (!data || !data.length) {
+    list.innerHTML = '<p class="muted">No channels yet.</p>';
+    return;
+  }
+
+  data.forEach(channel => {
+    const item = document.createElement("div");
+    item.className = "channel";
+
+    if (selectedChannel?.id === channel.id) {
+      item.classList.add("active");
+    }
+
+    const icon = document.createElement("span");
+    icon.className = "channel-icon";
+    icon.textContent = "#";
+
+    const name = document.createElement("span");
+    name.textContent = channel.name;
+
+    item.append(icon, name);
+    item.onclick = () => openChannel(channel);
+
+    list.appendChild(item);
+  });
+}
+
+// Open a channel
+
+function openChannel(channel) {
+  selectedChannel = channel;
+
+  $("welcome").classList.remove("hidden");
+  $("messages").classList.add("hidden");
+  $("messageForm").classList.add("hidden");
+
+  $("chatTitle").textContent = "#" + channel.name;
+  $("chatSubtitle").textContent =
+    channel.description || selectedServer.name;
+
+  $("welcome").querySelector("h1").textContent =
+    "#" + channel.name;
+
+  $("welcome").querySelector("p").textContent =
+    "This channel is ready. Channel messaging will be connected in the next upgrade.";
+
+  renderChannelSelection();
+}
+
+function renderChannelSelection() {
+  document.querySelectorAll(".channel").forEach(item => {
+    item.classList.remove("active");
+  });
+
+  const channels = $("channelList").children;
+
+  Array.from(channels).forEach(item => {
+    if (item.textContent.trim() === selectedChannel?.name) {
+      item.classList.add("active");
+    }
+  });
+}
+
+// Create channel
+
+async function createChannel() {
+  if (!selectedServer) {
+    notify("Choose a server first.");
+    return;
+  }
+
+  const name = $("newChannelName").value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-");
+
+  const description = $("newChannelDescription").value.trim();
+
+  if (!name) {
+    notify("Enter a channel name.");
+    return;
+  }
+
+  if (!/^[a-z0-9-]+$/.test(name)) {
+    notify("Use letters, numbers, and hyphens only.");
+    return;
+  }
+
+  const { error } = await db
+    .from("server_channels")
+    .insert({
+      server_id: selectedServer.id,
+      name,
+      description,
+      created_by: currentUser.id
+    });
+
+  if (error) {
+    notify("Could not create channel: " + error.message);
+    return;
+  }
+
+  notify("Channel created!");
+
+  $("newChannelName").value = "";
+  $("newChannelDescription").value = "";
+
+  closeModal("createChannelModal");
+
+  await loadChannels();
+}
+
+// Load server members
+
+async function loadServerMembers() {
+  if (!selectedServer) return;
+
+  const { data, error } = await db
+    .from("server_members")
+    .select("user_id,role")
+    .eq("server_id", selectedServer.id);
+
+  const list = $("serverMembersList");
+  list.innerHTML = "";
+
+  if (error) {
+    notify("Member loading error: " + error.message);
+    return;
+  }
+
+  for (const member of data || []) {
+    const { data: profile } = await db
+      .from("profiles")
+      .select("username")
+      .eq("id", member.user_id)
+      .maybeSingle();
+
+    if (!profile) continue;
+
+    const row = document.createElement("div");
+    row.className = "server-member";
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar";
+    avatar.textContent = profile.username[0].toUpperCase();
+
+    const name = document.createElement("span");
+    name.textContent =
+      profile.username +
+      (member.role === "owner" ? " 👑" : "");
+
+    row.append(avatar, name);
+    list.appendChild(row);
+  }
+}
+
+// Join server using invite code
+
+async function joinServer() {
+  const code = $("serverInviteCode").value.trim();
+
+  if (!code) {
+    notify("Enter an invite code.");
+    return;
+  }
+
+  const { data, error } = await db.rpc(
+    "join_server_by_invite",
+    { p_invite_code: code }
+  );
+
+  if (error) {
+    notify("Could not join server: " + error.message);
+    return;
+  }
+
+  $("serverInviteCode").value = "";
+  closeModal("joinServerModal");
+
+  notify("You joined the server!");
+
+  await loadServers();
+
+  const joinedServer = servers.find(server => server.id === data);
+
+  if (joinedServer) {
+    await openServer(joinedServer);
+  }
+}
+
+// Show invite code
+
+function showServerInvite() {
+  if (!selectedServer) {
+    notify("Choose a server first.");
+    return;
+  }
+
+  $("serverInviteCodeDisplay").textContent =
+    selectedServer.invite_code;
+
+  openModal("serverInviteModal");
+}
+
+// Copy invite code
+
+async function copyServerInvite() {
+  if (!selectedServer) return;
+
+  try {
+    await navigator.clipboard.writeText(
+      selectedServer.invite_code
+    );
+
+    notify("Invite code copied!");
+  } catch (error) {
+    notify("Copy failed. You can select and copy the code manually.");
+  }
+}
+
+// ==========================================
 // BUTTON CONNECTIONS
 // ==========================================
 
@@ -702,13 +1125,47 @@ $("homeAddFriendBtn").onclick = () => addFriend();
 $("messageForm").onsubmit = sendMessage;
 
 // Navigation buttons
-document.querySelectorAll(".server-icon").forEach(button => {
+
+document.querySelectorAll(".server-icon[data-view]").forEach(button => {
   button.addEventListener("click", () => {
     switchView(button.dataset.view);
   });
 });
 
+// Server buttons
+
+$("createServerBtn").onclick = () => {
+  $("newServerName").value = "";
+  openModal("createServerModal");
+};
+
+$("joinServerBtn").onclick = () => {
+  $("serverInviteCode").value = "";
+  openModal("joinServerModal");
+};
+
+$("confirmCreateServer").onclick = createServer;
+$("confirmJoinServer").onclick = joinServer;
+
+$("createChannelBtn").onclick = () => {
+  if (!selectedServer) {
+    notify("Choose a server first.");
+    return;
+  }
+
+  $("newChannelName").value = "";
+  $("newChannelDescription").value = "";
+
+  openModal("createChannelModal");
+};
+
+$("confirmCreateChannel").onclick = createChannel;
+
+$("serverOptionsBtn").onclick = showServerInvite;
+$("copyServerInvite").onclick = copyServerInvite;
+
 // User search
+
 $("userSearch").addEventListener("input", event => {
   clearTimeout(searchTimer);
 
@@ -720,10 +1177,9 @@ $("userSearch").addEventListener("input", event => {
 });
 
 // Close search results when clicking elsewhere
+
 document.addEventListener("click", event => {
-  if (
-    !event.target.closest(".search-wrap")
-  ) {
+  if (!event.target.closest(".search-wrap")) {
     $("userSearchResults").innerHTML = "";
   }
 });
@@ -741,6 +1197,9 @@ db.auth.onAuthStateChange((event, session) => {
     currentUser = null;
     currentProfile = null;
     currentChat = null;
+    selectedServer = null;
+    selectedChannel = null;
+
     showAuth();
   }
 });
