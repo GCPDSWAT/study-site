@@ -10,6 +10,7 @@
   <script src="script.js" defer></script>
 </head>
 <body>
+
   <div id="authScreen" class="auth-screen">
     <div class="auth-card">
       <div class="brand">VEX<span>CHAT</span></div>
@@ -24,13 +25,14 @@
   </div>
 
   <div id="app" class="app hidden">
+
     <aside class="server-sidebar">
       <div class="server-logo">V</div>
       <div id="serverList" class="server-list"></div>
-      <button id="createServerBtn" class="server-icon add-server" title="Create server">+</button>
-      <button class="server-icon active" data-view="home" title="Home">⌂</button>
-      <button class="server-icon" data-view="messages" title="Direct messages">✉</button>
-      <button class="server-icon" data-view="settings" title="Settings">⚙</button>
+      <button id="createServerBtn" class="server-icon add-server">+</button>
+      <button class="server-icon active" data-view="home">⌂</button>
+      <button class="server-icon" data-view="messages">✉</button>
+      <button class="server-icon" data-view="settings">⚙</button>
     </aside>
 
     <aside class="sidebar">
@@ -47,7 +49,7 @@
       <div id="serverPanel" class="server-panel hidden">
         <div class="server-title-row">
           <strong id="selectedServerName">Server</strong>
-          <button id="createChannelBtn" title="Create channel">+</button>
+          <button id="createChannelBtn">+</button>
         </div>
         <div class="section-heading">TEXT CHANNELS</div>
         <div id="channelList" class="channel-list"></div>
@@ -68,7 +70,7 @@
           <strong id="myUsername">User</strong>
           <small>Online</small>
         </div>
-        <button id="logoutBtn" class="icon-button" title="Log out">↪</button>
+        <button id="logoutBtn" class="icon-button">↪</button>
       </div>
     </aside>
 
@@ -81,9 +83,10 @@
             <p id="chatSubtitle">Choose a friend or channel to chat.</p>
           </div>
         </div>
+
         <div class="header-actions">
-          <span title="Notifications">🔔</span>
-          <span title="Help">❔</span>
+          <span>🔔</span>
+          <span>❔</span>
           <button id="addFriendBtn" class="secondary">Add Friend</button>
         </div>
       </header>
@@ -100,7 +103,7 @@
       <form id="messageForm" class="message-form hidden">
         <span class="composer-plus">+</span>
         <input id="messageInput" placeholder="Message..." autocomplete="off" maxlength="2000">
-        <button type="submit" title="Send message">➤</button>
+        <button type="submit">➤</button>
       </form>
 
       <section id="settingsView" class="settings-view hidden">
@@ -124,8 +127,10 @@
       <div class="member-heading">MEMBERS</div>
       <div id="serverMembersList"></div>
     </aside>
+
   </div>
 
   <div id="toast" class="toast"></div>
+
 </body>
 </html>
