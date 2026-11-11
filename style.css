@@ -115,7 +115,7 @@ button {
   margin-bottom: 8px;
 }
 
-/* APP LAYOUT */
+/* APP */
 
 .app {
   display: flex;
@@ -124,7 +124,7 @@ button {
   overflow: hidden;
 }
 
-/* SERVER RAIL */
+/* SERVER SIDEBAR */
 
 .server-sidebar {
   width: 72px;
@@ -150,7 +150,7 @@ button {
   background: var(--panel);
   color: white;
   font-size: 21px;
-  transition: border-radius .15s, background .15s;
+  transition: .15s;
 }
 
 .server-logo {
@@ -200,7 +200,6 @@ button {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 2px #0003;
 }
 
 .sidebar-header h2 {
@@ -254,7 +253,6 @@ button {
   color: var(--muted);
   font-size: 11px;
   font-weight: bold;
-  letter-spacing: .6px;
 }
 
 .friends-list,
@@ -389,7 +387,7 @@ button {
   padding: 5px;
 }
 
-/* MAIN CHAT */
+/* CHAT */
 
 .chat-area {
   flex: 1;
@@ -408,7 +406,6 @@ button {
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid #26272c;
-  box-shadow: 0 1px 2px #0002;
 }
 
 .channel-heading {
@@ -440,18 +437,10 @@ button {
   color: var(--muted);
 }
 
-.header-actions span {
-  cursor: default;
-}
-
 .secondary {
   background: #4e5058;
   padding: 8px 12px;
   border-radius: 4px;
-}
-
-.secondary:hover {
-  background: #60636d;
 }
 
 /* WELCOME */
@@ -539,7 +528,7 @@ button {
   font-size: 14px;
 }
 
-/* COMPOSER */
+/* MESSAGE BOX */
 
 .message-form {
   display: flex;
@@ -574,11 +563,7 @@ button {
   padding: 7px;
 }
 
-.message-form button:hover {
-  color: white;
-}
-
-/* RIGHT MEMBER LIST */
+/* MEMBERS */
 
 .member-sidebar {
   width: 220px;
@@ -592,7 +577,6 @@ button {
   color: var(--muted);
   font-size: 11px;
   font-weight: bold;
-  letter-spacing: .7px;
   padding: 5px 8px 12px;
 }
 
@@ -615,21 +599,6 @@ button {
 
 .member-row:hover {
   background: var(--hover);
-}
-
-.member-avatar-wrap {
-  position: relative;
-}
-
-.member-status {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #23a55a;
-  border: 2px solid var(--sidebar);
-  right: -1px;
-  bottom: 0;
 }
 
 /* SETTINGS */
@@ -696,8 +665,6 @@ button {
   font-size: 13px;
 }
 
-/* SCROLLBARS */
-
 * {
   scrollbar-width: thin;
   scrollbar-color: #1a1b1e transparent;
@@ -745,10 +712,6 @@ button {
     font-size: 13px;
   }
 
-  .chat-header p {
-    font-size: 10px;
-  }
-
   .messages {
     padding: 14px;
   }
@@ -781,11 +744,6 @@ button {
   }
 
   .search-wrap input {
-    font-size: 11px;
-  }
-
-  .header-actions .secondary {
-    padding: 7px;
     font-size: 11px;
   }
 }
